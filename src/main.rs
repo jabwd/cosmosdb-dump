@@ -57,12 +57,71 @@ async fn dump_collection(client: &DatabaseClient, id: &String) -> Option<dump_fi
     })
 }
 
+struct Credentials {
+    account: String,
+    key: String
+}
+
+fn parse_connection_args(args: args::Cli) -> Option<Credentials> {
+    if let Some(connection_string) = args.connection_string {
+        let parts: Vec<&str> = connection_string.split(";").collect();
+        let mut c_account: Option<&str> = None;
+        let mut c_key: Option<&str> = None;
+        for part in parts {
+            let kv: Vec<&str> = part.split("=").collect();
+            if kv.len() != 2 {
+                continue;
+            }
+            let key = kv[0];
+            let value = kv[1];
+            if key.to_lowercase().eq("accountendpoint") {
+                c_account = Some(value);
+            }
+            if key.to_lowercase().eq("accountkey") {
+                c_key = Some(value);
+            }
+        }
+        if let Some(c_account) = c_account {
+            if let Some(c_key) = c_key {
+                return Some(Credentials {
+                    account: c_account.to_string(),
+                    key: c_key.to_string(),
+                });
+            }
+        }
+    }
+
+    if let Some(account) = args.account.clone() {
+        if let Some(key) = args.key {
+            return Some(Credentials {
+                account,
+                key,
+            });
+        }
+    }
+
+    None
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = args::Cli::parse();
+    let res = match parse_connection_args(args) {
+        Some(res) => res,
+        None => {
+            eprintln!("Err: either use a connection string (-c) or both an account and key (-a, -k)");
+            return Ok(());
+        }
+    };
+    let account = res.account;
+    let key = res.key;
 
-    let auth_token = AuthorizationToken::primary_from_base64(&args.key).expect("Unable to create auth token");
-    let client = CosmosClient::new(args.account, auth_token);
+    let auth_token = AuthorizationToken::primary_from_base64(&key).expect("Unable to create auth token");
+    let account = account
+                                .replace("https://", "")
+                                .replace(".documents.azure.com:443", "")
+                                .replace("/", "");
+    let client = CosmosClient::new(account, auth_token);
 
     let mut databases = client.list_databases().into_stream();
     let mut db_list: Vec<dump_file::Database> = vec![];

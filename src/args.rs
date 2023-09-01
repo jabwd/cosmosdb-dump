@@ -10,9 +10,10 @@ use clap::Parser;
 )]
 pub struct Cli {
     #[arg(short, long)]
-    pub account: String,
+    pub account: Option<String>,
     #[arg(short, long)]
-    pub key: String,
-
+    pub key: Option<String>,
+    #[arg(short, long)]
+    pub connection_string: Option<String>,
     pub out: PathBuf,
 }
