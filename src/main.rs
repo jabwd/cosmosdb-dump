@@ -62,16 +62,17 @@ struct Credentials {
     key: String
 }
 
-fn parse_connection_args(args: args::Cli) -> Option<Credentials> {
-    if let Some(connection_string) = args.connection_string {
+fn parse_connection_args(args: &args::Cli) -> Option<Credentials> {
+    if let Some(connection_string) = args.connection_string.clone() {
         let parts: Vec<&str> = connection_string.split(";").collect();
         let mut c_account: Option<&str> = None;
         let mut c_key: Option<&str> = None;
         for part in parts {
-            let kv: Vec<&str> = part.split("=").collect();
+            let kv: Vec<&str> = part.splitn(2, "=").collect();
             if kv.len() != 2 {
                 continue;
             }
+            println!("KV: {:?}", kv);
             let key = kv[0];
             let value = kv[1];
             if key.to_lowercase().eq("accountendpoint") {
@@ -92,7 +93,7 @@ fn parse_connection_args(args: args::Cli) -> Option<Credentials> {
     }
 
     if let Some(account) = args.account.clone() {
-        if let Some(key) = args.key {
+        if let Some(key) = args.key.clone() {
             return Some(Credentials {
                 account,
                 key,
@@ -106,7 +107,7 @@ fn parse_connection_args(args: args::Cli) -> Option<Credentials> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = args::Cli::parse();
-    let res = match parse_connection_args(args) {
+    let res = match parse_connection_args(&args) {
         Some(res) => res,
         None => {
             eprintln!("Err: either use a connection string (-c) or both an account and key (-a, -k)");
